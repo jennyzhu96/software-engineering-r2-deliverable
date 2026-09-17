@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { createBrowserSupabaseClient } from "@/lib/client-utils";
@@ -154,9 +155,22 @@ export default function SpeciesDialog({ species, sessionId }: { species: Species
                   <div className="flex items-center gap-2">
                     <FormLabel className="font-bold">Kingdom:</FormLabel>
                     {isEditing ? (
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
+                      <Select onValueChange={(value) => field.onChange(kingdoms.parse(value))} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a kingdom" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectGroup>
+                            {kingdoms.options.map((kingdom, index) => (
+                              <SelectItem key={index} value={kingdom}>
+                                {kingdom}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
                     ) : (
                       <p>{field.value}</p>
                     )}
