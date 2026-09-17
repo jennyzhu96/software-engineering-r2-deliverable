@@ -11,10 +11,12 @@ import {
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { createBrowserSupabaseClient } from "@/lib/client-utils";
 import type { Database } from "@/lib/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, type BaseSyntheticEvent, type MouseEvent } from "react";
 import { useForm } from "react-hook-form";
@@ -23,10 +25,7 @@ import { z } from "zod";
 type Species = Database["public"]["Tables"]["species"]["Row"];
 
 export default function SpeciesDialog({ species, sessionId }: { species: Species; sessionId: string }) {
-  const [open, setOpen] = useState<boolean>(false);
-  {
-    /* Used for components to remember some information and display it */
-  }
+  const [open, setOpen] = useState<boolean>(false); // JZ: Used for components to remember some information and display it
 
   const isAuthor = sessionId === species.author;
   const [isEditing, setIsEditing] = useState(false);
@@ -47,12 +46,6 @@ export default function SpeciesDialog({ species, sessionId }: { species: Species
       .transform((val) => (!val || val.trim() === "" ? null : val.trim())),
     kingdom: kingdoms,
     total_population: z.number().int().positive().min(1).nullable(),
-    image: z
-      .string()
-      .url()
-      .nullable()
-      // Transform empty string or only whitespace input to null before form submission, and trim whitespace otherwise
-      .transform((val) => (!val || val.trim() === "" ? null : val.trim())),
     description: z
       .string()
       .nullable()
@@ -111,7 +104,7 @@ export default function SpeciesDialog({ species, sessionId }: { species: Species
     router.refresh();
 
     return toast({
-      title: "Profile updated successfully!",
+      title: "Card updated successfully!",
     });
   };
 
@@ -130,11 +123,12 @@ export default function SpeciesDialog({ species, sessionId }: { species: Species
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {/* What trigers this Dialog to open? Pressing the 'Learn More' Butotn */}
+      {/* What trigers this Dialog to open? Pressing the 'Learn More' Button */}
       <DialogTrigger asChild>
         <Button className="mt-3 w-full">Learn More</Button>
       </DialogTrigger>
 
+      {/* Top Half of the Dialog (before the line break) */}
       <DialogContent className="max-h-screen overflow-y-auto sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle> {species.scientific_name} </DialogTitle>
@@ -142,6 +136,13 @@ export default function SpeciesDialog({ species, sessionId }: { species: Species
         </DialogHeader>
         <hr className="my-2" />
 
+        {species.image && (
+          <div className="relative h-64 w-full">
+            <Image src={species.image} alt={species.scientific_name} fill className="object-cover" />
+          </div>
+        )}
+
+        {/* Form begin, allowing users to edit */}
         <Form {...form}>
           <form onSubmit={(e: BaseSyntheticEvent) => void form.handleSubmit(onSubmit)(e)}>
             {/* Kingdom form field*/}
@@ -201,7 +202,7 @@ export default function SpeciesDialog({ species, sessionId }: { species: Species
                   <FormLabel className="font-bold">Description:</FormLabel>
                   {isEditing ? (
                     <FormControl>
-                      <Input className="text-sm" {...field} value={field.value ?? ""} />
+                      <Textarea className="h-32 text-sm" {...field} value={field.value ?? ""} />
                     </FormControl>
                   ) : (
                     <p>{field.value}</p>
@@ -219,7 +220,7 @@ export default function SpeciesDialog({ species, sessionId }: { species: Species
                     <Button type="submit" className="mr-2">
                       Update
                     </Button>
-                    <Button variant="secondary" onClick={handleCancel}>
+                    <Button type="button" variant="secondary" onClick={handleCancel}>
                       Cancel
                     </Button>
                   </>

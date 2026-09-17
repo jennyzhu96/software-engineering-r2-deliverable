@@ -16,11 +16,26 @@ export default function SpeciesChatbot() {
     }
   };
 
-const handleSubmit = async () => {
-  // TODO: Implement this function
-}
+  // JZ: This function takes in the user's response then gets an output. It does ont display the output
+  const handleSubmit = async () => {
+    const trimmed = message.trim();
+    if (!trimmed) return; // Error check so users don't submit empty messages
 
-return (
+    setChatLog((prev) => [...prev, { role: "user", content: trimmed }]);
+    // JZ: Store the query the user asked. Need this special notation because we can't erase the previous states. We must keep the previous chat history
+    setMessage("");
+
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: trimmed }),
+    });
+
+    const data = (await res.json()) as { response: string };
+    setChatLog((prev) => [...prev, { role: "bot", content: data.response }]); // JZ: Store the chat bot response
+  };
+
+  return (
     <>
       <TypographyH2>Species Chatbot</TypographyH2>
       <div className="mt-4 flex gap-4">
