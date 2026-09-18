@@ -27,6 +27,7 @@ type Species = Database["public"]["Tables"]["species"]["Row"];
 
 export default function SpeciesDialog({ species, sessionId }: { species: Species; sessionId: string }) {
   const [open, setOpen] = useState<boolean>(false); // JZ: Used for components to remember some information and display it
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const isAuthor = sessionId === species.author;
   const [isEditing, setIsEditing] = useState(false);
@@ -52,6 +53,7 @@ export default function SpeciesDialog({ species, sessionId }: { species: Species
       .nullable()
       // Transform empty string or only whitespace input to null before form submission, and trim whitespace otherwise
       .transform((val) => (!val || val.trim() === "" ? null : val.trim())),
+    endangered: z.boolean(),
   });
 
   const defaultValues: Partial<FormData> = {
@@ -60,6 +62,7 @@ export default function SpeciesDialog({ species, sessionId }: { species: Species
     total_population: species.total_population,
     description: species.description,
     kingdom: species.kingdom,
+    endangered: species.endangered, // JZ: Add endangered
   };
 
   const form = useForm<FormData>({
@@ -81,6 +84,7 @@ export default function SpeciesDialog({ species, sessionId }: { species: Species
         common_name: data.common_name,
         total_population: data.total_population,
         description: data.description,
+        endangered: data.endangered, // JZ: Add endangered
       })
       .eq("id", species.id);
 
@@ -109,6 +113,27 @@ export default function SpeciesDialog({ species, sessionId }: { species: Species
     });
   };
 
+  const onDelete = async () => {
+    const supabase = createBrowserSupabaseClient();
+    const { error } = await supabase.from("species").delete().eq("id", species.id);
+
+    if (error) {
+      return toast({
+        title: "Something went wrong.",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+
+    setShowDeleteConfirm(false);
+    setOpen(false);
+    router.refresh();
+
+    return toast({
+      title: "Species deleted!",
+    });
+  };
+
   const startEditing = (e: MouseEvent) => {
     e.preventDefault();
     setIsEditing(true);
@@ -123,130 +148,188 @@ export default function SpeciesDialog({ species, sessionId }: { species: Species
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      {/* What trigers this Dialog to open? Pressing the 'Learn More' Button */}
-      <DialogTrigger asChild>
-        <Button className="mt-3 w-full">Learn More</Button>
-      </DialogTrigger>
+    <div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        {/* What trigers this Dialog to open? Pressing the 'Learn More' Button */}
+        <DialogTrigger asChild>
+          <Button className="mt-3 w-full">Learn More</Button>
+        </DialogTrigger>
 
-      {/* Top Half of the Dialog (before the line break) */}
-      <DialogContent className="max-h-screen overflow-y-auto sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle> {species.scientific_name} </DialogTitle>
-          <DialogDescription>Learn more about the {species.common_name}!</DialogDescription>
-        </DialogHeader>
-        <hr className="my-2" />
+        {/* Top Half of the Dialog (before the line break) */}
+        <DialogContent className="max-h-screen overflow-y-auto sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle> {species.scientific_name} </DialogTitle>
+            <DialogDescription>Learn more about the {species.common_name}!</DialogDescription>
+          </DialogHeader>
+          <hr className="my-2" />
 
-        {species.image && (
-          <div className="relative h-64 w-full">
-            <Image src={species.image} alt={species.scientific_name} fill className="object-cover" />
-          </div>
-        )}
+          {species.image && (
+            <div className="relative h-64 w-full">
+              <Image src={species.image} alt={species.scientific_name} fill className="object-cover" />
+            </div>
+          )}
 
-        {/* Form begin, allowing users to edit */}
-        <Form {...form}>
-          <form onSubmit={(e: BaseSyntheticEvent) => void form.handleSubmit(onSubmit)(e)}>
-            {/* Kingdom form field*/}
-            <FormField
-              control={form.control}
-              name="kingdom"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center gap-2">
-                    <FormLabel className="font-bold">Kingdom:</FormLabel>
-                    {isEditing ? (
-                      <Select onValueChange={(value) => field.onChange(kingdoms.parse(value))} value={field.value}>
+          {/* JZ: Form begin, allowing users to edit */}
+          <Form {...form}>
+            <form onSubmit={(e: BaseSyntheticEvent) => void form.handleSubmit(onSubmit)(e)}>
+              {/* JZ: Kingdom form field*/}
+              <FormField
+                control={form.control}
+                name="kingdom"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-center gap-2">
+                      <FormLabel className="font-bold">Kingdom:</FormLabel>
+                      {isEditing ? (
+                        <Select onValueChange={(value) => field.onChange(kingdoms.parse(value))} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a kingdom" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectGroup>
+                              {kingdoms.options.map((kingdom, index) => (
+                                <SelectItem key={index} value={kingdom}>
+                                  {kingdom}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p>{field.value}</p>
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* JZ: Population form field*/}
+              <FormField
+                control={form.control}
+                name="total_population"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-center gap-2">
+                      <FormLabel className="font-bold">Population:</FormLabel>
+                      {isEditing ? (
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a kingdom" />
-                          </SelectTrigger>
+                          <Input
+                            type="number"
+                            className="text-sm"
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(+e.target.value)}
+                          />
                         </FormControl>
-                        <SelectContent>
-                          <SelectGroup>
-                            {kingdoms.options.map((kingdom, index) => (
-                              <SelectItem key={index} value={kingdom}>
-                                {kingdom}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <p>{field.value}</p>
-                    )}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                      ) : (
+                        <p>{field.value}</p>
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            {/* Population form field*/}
-            <FormField
-              control={form.control}
-              name="total_population"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center gap-2">
-                    <FormLabel className="font-bold">Population:</FormLabel>
+              {/* JZ: For endangered species (similar structure to kingdom) */}
+              <FormField
+                control={form.control}
+                name="endangered"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-center gap-2">
+                      <FormLabel className="font-bold">Endangered:</FormLabel>
+                      {isEditing ? (
+                        <Select
+                          onValueChange={(value) => field.onChange(value === "true")}
+                          value={field.value ? "true" : "false"}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select an option" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectItem value="true">Yes</SelectItem>
+                              <SelectItem value="false">No</SelectItem>
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p>{field.value ? "Yes" : "No"}</p>
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* JZ: Description form field*/}
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold">Description:</FormLabel>
                     {isEditing ? (
                       <FormControl>
-                        <Input
-                          type="number"
-                          className="text-sm"
-                          {...field}
-                          value={field.value ?? ""}
-                          onChange={(e) => field.onChange(+e.target.value)}
-                        />
+                        <Textarea className="h-32 text-sm" {...field} value={field.value ?? ""} />
                       </FormControl>
                     ) : (
                       <p>{field.value}</p>
                     )}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Description form field*/}
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-bold">Description:</FormLabel>
-                  {isEditing ? (
-                    <FormControl>
-                      <Textarea className="h-32 text-sm" {...field} value={field.value ?? ""} />
-                    </FormControl>
-                  ) : (
-                    <p>{field.value}</p>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Conditionally render action buttons depending on if the form is in viewing/editing mode */}
-            {isAuthor && (
-              <div className="mt-4 flex">
-                {isEditing ? (
-                  <>
-                    <Button type="submit" className="mr-2">
-                      Update
-                    </Button>
-                    <Button type="button" variant="secondary" onClick={handleCancel}>
-                      Cancel
-                    </Button>
-                  </>
-                ) : (
-                  // Toggle editing mode
-                  <Button onClick={startEditing}>Edit</Button>
+                    <FormMessage />
+                  </FormItem>
                 )}
-              </div>
-            )}
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+              />
+
+              {/* Conditionally render action buttons depending on if the form is in viewing/editing mode */}
+              {isAuthor && ( // JZ: if isAuthor is true... then continue on
+                <div className="mt-4 flex">
+                  {isEditing ? ( // JZ: if isEditing is true... then continue on
+                    <>
+                      <Button type="submit" className="mr-2">
+                        Update
+                      </Button>
+                      <Button type="button" variant="secondary" onClick={handleCancel}>
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <div>
+                      {" "}
+                      {/* JZ: Must be put in a div to wrap the objects */}
+                      <Button type="button" onClick={startEditing} className="mr-2">
+                        Edit
+                      </Button>
+                      <Button type="button" variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
+                        Delete
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* JZ: Add another Dialog popup for the confirm message! */}
+      {/* JZ: This trigger happens if showDeleteComfirm is true */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <p>Delete {species.scientific_name}? This action cannot be undone! </p>
+          <Button type="button" variant="destructive" onClick={() => void onDelete()}>
+            Yes, delete 🥲
+          </Button>
+          <Button type="button" onClick={() => setShowDeleteConfirm(false)}>
+            Cancel
+          </Button>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

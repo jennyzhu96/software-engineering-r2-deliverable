@@ -54,6 +54,8 @@ const speciesSchema = z.object({
     .nullable()
     // Transform empty string or only whitespace input to null before form submission, and trim whitespace otherwise
     .transform((val) => (!val || val.trim() === "" ? null : val.trim())),
+
+  endangered: z.boolean(), // JZ: Add endangered
 });
 
 type FormData = z.infer<typeof speciesSchema>;
@@ -72,6 +74,7 @@ const defaultValues: Partial<FormData> = {
   total_population: null,
   image: null,
   description: null,
+  endangered: false, // JZ: Add endangered
 };
 
 export default function AddSpeciesDialog({ userId }: { userId: string }) {
@@ -99,6 +102,7 @@ export default function AddSpeciesDialog({ userId }: { userId: string }) {
         scientific_name: input.scientific_name,
         total_population: input.total_population,
         image: input.image,
+        endagered: input.endangered, // JZ: Add endangered
       },
     ]);
 
@@ -270,6 +274,35 @@ export default function AddSpeciesDialog({ userId }: { userId: string }) {
                   );
                 }}
               />
+
+              {/* JZ: Endangered (similar structure as kingdom) */}
+              <FormField
+                control={form.control}
+                name="endangered"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Endangered</FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(value === "true")}
+                      value={field.value ? "true" : "false"}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an option" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="true">Yes</SelectItem>
+                          <SelectItem value="false">No</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="flex">
                 <Button type="submit" className="ml-1 mr-1 flex-auto">
                   Add Species
