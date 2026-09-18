@@ -102,7 +102,7 @@ export default function AddSpeciesDialog({ userId }: { userId: string }) {
         scientific_name: input.scientific_name,
         total_population: input.total_population,
         image: input.image,
-        endagered: input.endangered, // JZ: Add endangered
+        endangered: input.endangered, // JZ: Add endangered
       },
     ]);
 
